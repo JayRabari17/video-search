@@ -151,7 +151,7 @@ function SearchMarengo3() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-full px-8"
+          className="w-full px-0 sm:px-6 lg:px-8"
         >
           {/* Error Message */}
           {error && (

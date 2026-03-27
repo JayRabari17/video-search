@@ -31,7 +31,7 @@ const JsonDisplay = ({ data }) => {
   };
 
   return (
-    <div className="bg-gray-900 rounded-xl p-6 h-full overflow-y-auto overflow-x-hidden">
+    <div className="bg-gray-900 rounded-xl p-3 sm:p-6 h-full overflow-y-auto overflow-x-hidden">
       <pre 
         className="text-sm font-mono whitespace-pre-wrap break-words text-gray-300 leading-relaxed"
         dangerouslySetInnerHTML={{ __html: highlightBraces(syntaxHighlight(data)) }}
