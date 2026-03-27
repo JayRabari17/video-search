@@ -266,7 +266,7 @@ jobs:
               --template-body file://frontend-cloudformation-stack.yaml \
               --parameters \
                 ParameterKey=Environment,ParameterValue="${{ env.ENVIRONMENT }}" \
-                ParameterKey=ProjectName,ParameterValue="${{ env.PROJECT_NAME }}" \
+                ParameterKey=ProjectName,ParameterValue="${{ env.STACK_PREFIX }}" \
               --capabilities CAPABILITY_NAMED_IAM \
               --region "${{ env.AWS_REGION }}" || {
                 echo "⚠️ No changes to deploy for frontend stack"
@@ -283,7 +283,7 @@ jobs:
               --template-body file://frontend-cloudformation-stack.yaml \
               --parameters \
                 ParameterKey=Environment,ParameterValue="${{ env.ENVIRONMENT }}" \
-                ParameterKey=ProjectName,ParameterValue="${{ env.PROJECT_NAME }}" \
+                ParameterKey=ProjectName,ParameterValue="${{ env.STACK_PREFIX }}" \
               --capabilities CAPABILITY_NAMED_IAM \
               --on-failure DELETE \
               --region "${{ env.AWS_REGION }}"
