@@ -82,8 +82,8 @@ const VideoUpload = () => {
       if (result.type === 'multipart') {
         await completeMultipartUpload({
           uploadId: result.uploadId,
+          s3_key: presignedData.s3_key,
           parts: result.parts,
-          fileName: file.name
         });
       }
 
