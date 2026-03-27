@@ -55,9 +55,9 @@ const SearchBar = ({ onSearch, isLoading, onSearchTypeChange, queryValue = '', o
 
   return (
     <form onSubmit={handle_submit} className="w-full">
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
         {/* Search Input */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400">
             <Search size={20} />
           </div>
@@ -66,7 +66,7 @@ const SearchBar = ({ onSearch, isLoading, onSearchTypeChange, queryValue = '', o
             value={query}
             onChange={(e) => updateQuery(e.target.value)}
             placeholder="Search videos, actions, or objects..."
-            className="w-full py-4 pl-14 pr-16 text-lg rounded-2xl border border-blue-200 focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-400 shadow-sm hover:shadow-md transition-all"
+            className="w-full py-4 pl-14 pr-16 text-base sm:text-lg rounded-2xl border border-blue-200 focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-blue-400 shadow-sm hover:shadow-md transition-all"
             disabled={isLoading}
           />
           
@@ -88,11 +88,11 @@ const SearchBar = ({ onSearch, isLoading, onSearchTypeChange, queryValue = '', o
         </div>
 
         {/* Dropdown Button */}
-        <div className="relative">
+        <div className="relative self-end sm:self-auto">
           <button
             type="button"
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-2 px-4 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl border border-gray-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl border border-gray-200 transition-colors w-full sm:w-auto justify-center"
             disabled={isLoading}
           >
             <div className="w-5 h-5 flex items-center justify-center">

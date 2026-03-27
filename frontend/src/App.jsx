@@ -59,7 +59,7 @@ function LandingPage({ userEmail, onLogout }) {
         showLogout={true}
         onLogout={onLogout}
       />
-      <main className="ml-20 flex flex-col items-center px-8 py-12 min-h-screen">
+      <main className="ml-20 flex flex-col items-center min-h-screen min-w-0 px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {currentPage === 'upload' ? (
           <VideoUpload />
         ) : currentPage === 'explore' ? (

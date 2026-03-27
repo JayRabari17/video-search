@@ -15,7 +15,7 @@ const Sidebar = ({ activeTab, setActiveTab, userEmail = "", showLogout = false, 
         width: isExpanded ? '240px' : '80px'
       }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 h-screen flex flex-col py-6 bg-white border-r border-blue-100 shadow-sm z-40"
+      className="fixed left-0 top-0 h-screen flex flex-col py-4 sm:py-6 bg-white border-r border-blue-100 shadow-sm z-40 max-w-[90vw]"
     >
       {/* Toggle Button */}
       <div className="mb-6 px-4">

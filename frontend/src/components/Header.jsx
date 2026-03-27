@@ -11,7 +11,7 @@ const Header = ({ currentPage, onPageChange }) => {
               <Video size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Video Search</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Video Search</h1>
               <p className="text-xs text-gray-500 flex items-center gap-1">
                 <Sparkles size={12} />
                 Search
@@ -29,7 +29,7 @@ const Header = ({ currentPage, onPageChange }) => {
               }`}
             >
               <Search size={18} />
-              Search
+              <span className="hidden sm:inline">Search</span>
             </button>
             <button
               onClick={() => onPageChange('upload')}
@@ -40,7 +40,7 @@ const Header = ({ currentPage, onPageChange }) => {
               }`}
             >
               <Upload size={18} />
-              Upload
+              <span className="hidden sm:inline">Upload</span>
             </button>
           </nav>
         </div>

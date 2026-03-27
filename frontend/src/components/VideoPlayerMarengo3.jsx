@@ -185,7 +185,7 @@ const VideoPlayerMarengo3 = ({ clip, allClips, onClose, onClipSelect }) => {
       />
 
       {/* Side Panel */}
-      <div className="relative w-full max-w-md md:max-w-lg lg:max-w-xl h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="relative w-full max-w-full sm:max-w-md md:max-w-lg lg:max-w-xl h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white z-10">
@@ -375,7 +375,7 @@ const VideoPlayerMarengo3 = ({ clip, allClips, onClose, onClipSelect }) => {
         </div>
 
         {/* Scrollable Matches List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 bg-gray-50">
           {allMatchesFromVideo.map((match, idx) => {
             const matchAbsoluteIndex = getAbsoluteIndex(match);
             const isCurrentClip = match.timestamp_start === clip.timestamp_start;

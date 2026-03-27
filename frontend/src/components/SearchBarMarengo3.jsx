@@ -175,9 +175,9 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
   return (
     <form onSubmit={handle_submit} className="w-full">
       {/* Main Row - Search bar takes more space */}
-      <div className="flex gap-3 items-center">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         {/* Main Search Container - Larger and more prominent */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-0">
           {/* Search Input */}
           <div className={`relative transition-all duration-300 ${selectedImage ? 'min-h-32 p-4' : 'h-16'
             } rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-md flex flex-col`}>
@@ -216,7 +216,7 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
                 value={query}
                 onChange={(e) => updateQuery(e.target.value)}
                 placeholder={selectedImage ? "Add text to refine search..." : "Search videos, actions, or objects..."}
-                className="w-full h-full pl-16 pr-20 text-lg bg-transparent focus:outline-none"
+                className="w-full h-full pl-16 pr-20 text-base sm:text-lg bg-transparent focus:outline-none"
                 disabled={isLoading}
               />
 
@@ -273,7 +273,7 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
         <button
           type="submit"
           disabled={isLoading || (!query.trim() && !selectedImage)}
-          className="flex items-center justify-center w-14 h-14 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-2xl transition-colors shadow-sm hover:shadow-md disabled:cursor-not-allowed flex-shrink-0"
+          className="flex items-center justify-center w-full sm:w-14 h-14 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-2xl transition-colors shadow-sm hover:shadow-md disabled:cursor-not-allowed flex-shrink-0"
           title="Search"
         >
           {isLoading ? (
@@ -284,11 +284,11 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
         </button>
 
         {/* Categories Dropdown */}
-        <div ref={categoryDropdownRef} className="relative flex-shrink-0">
+        <div ref={categoryDropdownRef} className="relative flex-shrink-0 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-            className={`flex items-center gap-1 px-3 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl border transition-colors ${selectedCategories.length > 0
+            className={`flex items-center justify-center gap-1 w-full sm:w-auto px-3 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl border transition-colors ${selectedCategories.length > 0
               ? 'border-blue-400 bg-blue-50 text-blue-700'
               : 'border-gray-200'
               }`}
@@ -340,11 +340,11 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
         </div>
 
         {/* Options Button - Relative for dropdown positioning */}
-        <div ref={dropdownRef} className="relative flex-shrink-0">
+        <div ref={dropdownRef} className="relative flex-shrink-0 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setShowDropdown(!showDropdown)}
-            className={`flex items-center gap-2 px-3 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl border transition-colors ${(minRelevance !== null || maxSegmentsPerVideo !== null)
+            className={`flex items-center justify-center gap-2 w-full sm:w-auto px-3 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl border transition-colors ${(minRelevance !== null || maxSegmentsPerVideo !== null)
               ? 'border-blue-400 bg-blue-50'
               : 'border-gray-200'
               }`}

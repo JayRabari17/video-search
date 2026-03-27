@@ -123,7 +123,7 @@ const VideoExplore = () => {
     >
       {/* Header */}
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent mb-2">
+        <h1 className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent mb-2">
           Explore All Videos
         </h1>
         <p className="text-blue-600 text-lg">
@@ -161,7 +161,7 @@ const VideoExplore = () => {
                 className="bg-white rounded-3xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer group"
               >
                 {/* Video Thumbnail */}
-                <div className="relative h-52 bg-gray-200 flex items-center justify-center overflow-hidden">
+                <div className="relative h-44 sm:h-52 bg-gray-200 flex items-center justify-center overflow-hidden">
                   <VideoThumbnail videoUrl={video.videoUrl} videoId={video.id} />
                   
                   {/* Duration overlay */}
@@ -222,10 +222,10 @@ const VideoExplore = () => {
 
       {/* Video Player Popup */}
       {selectedVideo && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-8 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden animate-slide-up">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-6 lg:p-8 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] sm:max-h-[85vh] overflow-hidden animate-slide-up">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded">
                   VIDEO
@@ -248,12 +248,12 @@ const VideoExplore = () => {
             </div>
 
             {/* Video Player */}
-            <div className="bg-black flex items-center justify-center" style={{ height: 'calc(85vh - 73px)' }}>
+            <div className="bg-black flex items-center justify-center h-[calc(92vh-64px)] sm:h-[calc(85vh-73px)]">
               <video
                 src={selectedVideo.videoPath}
                 controls
                 autoPlay
-                className="w-full h-full"
+                className="w-full h-full object-contain"
                 controlsList="nodownload"
               >
                 Your browser does not support the video tag.

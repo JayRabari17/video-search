@@ -125,7 +125,7 @@ const VideoClipCard = ({ clip, onClick, from }) => {
 
           {
             from !== "Marengo 3" && (
-              <div className={`absolute top-2 right-24 px-3 py-1 rounded text-xs font-semibold text-white ${indicatorBg}`}>
+              <div className={`absolute top-2 right-2 sm:right-24 px-3 py-1 rounded text-xs font-semibold text-white ${indicatorBg}`}>
                 {confidenceLabel}
               </div>
             )

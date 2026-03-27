@@ -116,14 +116,16 @@ const VideoUpload = () => {
     >
       {/* Header */}
       <div className="text-center mb-8">
-        <h2 className="text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">Share Your Story</h2>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+          Share Your Story
+        </h2>
         <p className="text-blue-600 mb-8 max-w-xl text-center">
           Upload your best moments. Smooth, fast, and secure.
         </p>
       </div>
 
       {/* Upload Card */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 w-full max-w-3xl">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 sm:p-6 lg:p-8 w-full max-w-3xl">
         {uploadStatus === 'idle' || uploadStatus === 'error' ? (
           <>
             {/* File Input */}
@@ -132,12 +134,12 @@ const VideoUpload = () => {
                 htmlFor="video-upload"
                 className="block w-full cursor-pointer"
               >
-                <div className="border-2 border-dashed border-blue-300 rounded-xl p-16 text-center hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 min-h-[300px] flex flex-col items-center justify-center">
-                  <FileVideo size={64} className="mx-auto text-blue-400 mb-6" />
-                  <p className="text-xl font-semibold text-gray-700 mb-3">
+                <div className="border-2 border-dashed border-blue-300 rounded-xl p-8 sm:p-12 lg:p-16 text-center hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 min-h-[220px] sm:min-h-[280px] flex flex-col items-center justify-center">
+                  <FileVideo size={56} className="mx-auto text-blue-400 mb-4 sm:mb-6" />
+                  <p className="text-lg sm:text-xl font-semibold text-gray-700 mb-3 break-words">
                     {file ? file.name : 'Click to select video'}
                   </p>
-                  <p className="text-base text-gray-500">
+                  <p className="text-sm sm:text-base text-gray-500">
                     Acceptable format: MP4, MOV, WebM
                     <br />
                     Maximum file size: 2GB
@@ -247,7 +249,7 @@ const VideoUpload = () => {
             <button
               onClick={handle_upload}
               disabled={!file || selectedCategories.length === 0}
-              className="w-full flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="w-full flex items-center justify-center gap-3 px-6 sm:px-8 py-4 sm:py-5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <Upload size={24} />
               Upload Video to S3
