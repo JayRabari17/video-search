@@ -893,7 +893,12 @@ class CompleteMultipartRequest(BaseModel):
     """Request body for completing multipart upload"""
     uploadId: str
     s3_key: str
-    parts: List[Dict[str, str]]  # List of {"ETag": "...", "PartNumber": 1}
+    # Accept PartNumber as int (or string coercible to int) and validate shape.
+    class Part(BaseModel):
+        ETag: str
+        PartNumber: int
+
+    parts: List[Part]
 
 
 @app.post("/complete-multipart-upload")
@@ -930,11 +935,16 @@ async def complete_multipart_upload(
 
         # Complete the multipart upload
         try:
+            # Boto3 requires PartNumber to be int and parts sorted ascending.
+            parts_payload = sorted(
+                ({"ETag": p.ETag, "PartNumber": p.PartNumber} for p in parts),
+                key=lambda p: p["PartNumber"],
+            )
             response = s3_client.complete_multipart_upload(
                 Bucket=bucket_name,
                 Key=s3_key,
                 UploadId=upload_id,
-                MultipartUpload={"Parts": parts}
+                MultipartUpload={"Parts": parts_payload}
             )
 
             logger.info(f"✓ Multipart upload completed for: {s3_key}")

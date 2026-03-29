@@ -25,6 +25,12 @@ export const upload_to_s3 = async (file, presignedData, onProgress) => {
 
       // S3 returns an ETag header which is required to complete the upload
       const etag = response.headers.get('ETag');
+      if (!etag) {
+        throw new Error(
+          `Chunk ${i + 1} uploaded but ETag header was not readable. ` +
+          `This is usually an S3 CORS issue: ensure the bucket CORS exposes the 'ETag' header.`
+        );
+      }
       partsMetadata.push({
         ETag: etag.replace(/"/g, ''),
         PartNumber: i + 1,
