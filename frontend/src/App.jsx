@@ -6,6 +6,7 @@ import VideoPlayer from './components/VideoPlayer';
 import VideoUpload from './components/VideoUpload';
 import VideoExplore from './components/VideoExplore';
 import SearchMarengo3 from './components/SearchMarengo3';
+import EntitiesPage from './components/EntitiesPage';
 import LoginScreen from './components/LoginScreen.jsx';
 import { searchClips, searchClipsWithImage } from './services/api';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
@@ -64,8 +65,8 @@ function LandingPage({ userEmail, onLogout }) {
           <VideoUpload />
         ) : currentPage === 'explore' ? (
           <VideoExplore />
-        ) : currentPage === 'search-3' ? (
-          <SearchMarengo3 />
+        ) : currentPage === 'entities' ? (
+          <EntitiesPage />
         ) : (
           <SearchMarengo3 />
         )}

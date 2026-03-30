@@ -68,7 +68,7 @@ const VideoUpload = () => {
       console.log('Requesting presigned URL for:', file.name, 'categories:', categoryParam);
 
       // 1. Get URLs (Backend should detect large files and return multipart info)
-      const presignedData = await getPresignedUploadUrl(file.name, file.size, categoryParam);
+      const presignedData = await getPresignedUploadUrl(file.name, file.size, categoryParam, file.type);
 
       console.log(presignedData);
 

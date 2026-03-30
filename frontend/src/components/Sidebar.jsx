@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, UploadCloud, PanelLeft, Grid, User, LogOut, Sparkles } from 'lucide-react';
+import { Search, UploadCloud, PanelLeft, Grid, User, LogOut, Sparkles, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Sidebar = ({ activeTab, setActiveTab, userEmail = "", showLogout = false, onLogout }) => {
@@ -120,6 +120,33 @@ const Sidebar = ({ activeTab, setActiveTab, userEmail = "", showLogout = false, 
                 className="text-sm font-medium whitespace-nowrap overflow-hidden"
               >
                 Search
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+
+        {/* Entities / People Button */}
+        <button
+          onClick={() => setActiveTab('entities')}
+          className={`w-full flex items-center gap-3 p-3 transition-all ${
+            isExpanded ? 'rounded-lg' : 'rounded-full justify-center'
+          } ${
+            activeTab === 'entities' 
+              ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg' 
+              : 'text-blue-600 hover:bg-blue-50'
+          }`}
+        >
+          <Users className="w-6 h-6 flex-shrink-0" />
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-sm font-medium whitespace-nowrap overflow-hidden"
+              >
+                People
               </motion.span>
             )}
           </AnimatePresence>

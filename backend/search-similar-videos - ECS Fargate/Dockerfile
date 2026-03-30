@@ -25,6 +25,8 @@ RUN pip install -r requirements.txt
 
 # Copy application code
 COPY main.py .
+COPY routes.py .
+COPY services.py .
 COPY seed_users.py .
 COPY startup.sh .
 

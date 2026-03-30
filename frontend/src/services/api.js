@@ -85,8 +85,9 @@ export const searchClips = async (query, topK = 10, searchType = 'vector', image
     const backendUrl = await getBackendUrl();
 
     // Validate that at least one input is provided
-    if (!query && !imageFile) {
-      throw new Error('Either query text or image file is required');
+    // Entity-only search is valid (no text, no image) as long as entityId is provided.
+    if (!query && !imageFile && !entityId) {
+      throw new Error('Either query text, image file, or entity is required');
     }
 
     let requestBody = {
@@ -171,14 +172,24 @@ export const searchClipsWithImage = async (imageFile, topK = 10, searchType = 'v
 
 // Unified search function for Marengo 3 - handles text, image, or combined text+image searches
 // Supported search types: 'vector', 'visual', 'audio', 'transcription'
-export const searchClipsMarengo3 = async (query = null, topK = 10, searchType = 'vector', imageFile = null, categories = null, minRelevance = null, maxSegmentsPerVideo = null) => {
+export const searchClipsMarengo3 = async (
+  query = null,
+  topK = 10,
+  searchType = 'vector',
+  imageFile = null,
+  categories = null,
+  minRelevance = null,
+  maxSegmentsPerVideo = null,
+  entityId = null
+) => {
   try {
     // Load config first
     const backendUrl = await getBackendUrl();
 
     // Validate that at least one input is provided
-    if (!query && !imageFile) {
-      throw new Error('Either query text or image file is required');
+    // Entity-only search is valid (no text, no image) as long as entityId is provided.
+    if (!query && !imageFile && !entityId) {
+      throw new Error('Either query text, image file, or entity is required');
     }
 
     // Validate search type
@@ -201,6 +212,10 @@ export const searchClipsMarengo3 = async (query = null, topK = 10, searchType = 
     }
     if (maxSegmentsPerVideo !== null && maxSegmentsPerVideo !== undefined) {
       requestBody.max_segments_per_video = maxSegmentsPerVideo;
+    }
+
+    if (entityId) {
+      requestBody.entity_id = entityId;
     }
 
     // Determine search type for logging
@@ -292,6 +307,43 @@ export const searchClipsMarengo3 = async (query = null, topK = 10, searchType = 
   }
 };
 
+// ============ ENTITY APIs ============
+
+export const listEntities = async () => {
+  const backendUrl = await getBackendUrl();
+  const response = await fetch(`${backendUrl}/entities`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    throw new Error('Failed to load entities');
+  }
+  return await response.json();
+};
+
+export const createEntity = async (name, imageKeys, primaryImageKey) => {
+  const backendUrl = await getBackendUrl();
+  const body = {
+    name,
+    image_keys: imageKeys,
+    primary_image_key: primaryImageKey,
+  };
+  const response = await fetch(`${backendUrl}/entities`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create entity');
+  }
+  return await response.json();
+};
+
 // Wrapper for Marengo 3 image-only search
 export const searchClipsWithImageMarengo3 = async (imageFile, topK = 10, searchType = 'vector') => {
   return searchClipsMarengo3(null, topK, searchType, imageFile);
@@ -352,7 +404,7 @@ export const listAllVideos = async () => {
   }
 };
 
-export const getPresignedUploadUrl = async (filename, fileSize, category) => {
+export const getPresignedUploadUrl = async (filename, fileSize, category, contentType) => {
   try {
     // Load config first
     const backendUrl = await getBackendUrl();
@@ -364,6 +416,9 @@ export const getPresignedUploadUrl = async (filename, fileSize, category) => {
     }
     if (category) {
       queryParams += `&category=${encodeURIComponent(category)}`;
+    }
+    if (contentType) {
+      queryParams += `&content_type=${encodeURIComponent(contentType)}`;
     }
 
     const response = await fetch(`${backendUrl}/generate-upload-presigned-url?${queryParams}`, {
