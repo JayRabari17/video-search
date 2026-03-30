@@ -322,12 +322,11 @@ export const listEntities = async () => {
   return await response.json();
 };
 
-export const createEntity = async (name, imageKeys, primaryImageKey) => {
+export const createEntity = async (name, imageKeys) => {
   const backendUrl = await getBackendUrl();
   const body = {
     name,
     image_keys: imageKeys,
-    primary_image_key: primaryImageKey,
   };
   const response = await fetch(`${backendUrl}/entities`, {
     method: 'POST',
@@ -340,6 +339,52 @@ export const createEntity = async (name, imageKeys, primaryImageKey) => {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || 'Failed to create entity');
+  }
+  return await response.json();
+};
+
+export const getEntity = async (entityId) => {
+  const backendUrl = await getBackendUrl();
+  const response = await fetch(`${backendUrl}/entities/${encodeURIComponent(entityId)}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to load entity');
+  }
+  return await response.json();
+};
+
+export const updateEntity = async (entityId, body) => {
+  const backendUrl = await getBackendUrl();
+  const response = await fetch(`${backendUrl}/entities/${encodeURIComponent(entityId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to update entity');
+  }
+  return await response.json();
+};
+
+export const deleteEntity = async (entityId) => {
+  const backendUrl = await getBackendUrl();
+  const response = await fetch(`${backendUrl}/entities/${encodeURIComponent(entityId)}`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to delete entity');
   }
   return await response.json();
 };

@@ -2,17 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Image as ImageIcon, Plus, AlertCircle, CheckCircle } from 'lucide-react';
 import { upload_to_s3 } from '../utils/s3Upload';
 import { getPresignedUploadUrl, completeMultipartUpload, listEntities, createEntity } from '../services/api';
+import EntityEditorModal from './EntityEditorModal';
 
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 10;
 
 const EntitiesPage = () => {
   const [entities, setEntities] = useState([]);
   const [name, setName] = useState('');
   const [files, setFiles] = useState([]);
-  const [primaryIndex, setPrimaryIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
+  const [activeEntityId, setActiveEntityId] = useState(null);
 
   const loadEntities = async () => {
     try {
@@ -32,13 +33,6 @@ const EntitiesPage = () => {
     const selected = Array.from(e.target.files || []);
     const all = [...files, ...selected].slice(0, MAX_IMAGES);
     setFiles(all);
-    if (all.length && primaryIndex >= all.length) {
-      setPrimaryIndex(0);
-    }
-  };
-
-  const handlePrimarySelect = (index) => {
-    setPrimaryIndex(index);
   };
 
   const handleSubmit = async (e) => {
@@ -77,14 +71,10 @@ const EntitiesPage = () => {
 
         imageKeys.push(s3Key);
       }
-
-      const primaryKey = imageKeys[primaryIndex] || imageKeys[0];
-
-      await createEntity(name.trim(), imageKeys, primaryKey);
+      await createEntity(name.trim(), imageKeys);
 
       setName('');
       setFiles([]);
-      setPrimaryIndex(0);
       setSuccess('Entity created successfully.');
       await loadEntities();
     } catch (e) {
@@ -99,8 +89,8 @@ const EntitiesPage = () => {
     <div className="w-full max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-4">People & Entities</h1>
       <p className="text-gray-600 mb-6">
-        Create named entities with reference images. You must choose a <strong>primary image</strong>, which will
-        always be used as the visual anchor during entity-based search.
+        Create named entities with reference images.<br/><br/>
+        <span style={{ fontSize: '14px', color: 'gray' }}> <span className="font-bold">Note:</span> For now, consider the first image as the primary image for the entity.</span>
       </p>
 
       <form onSubmit={handleSubmit} className="mb-10 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
@@ -142,26 +132,13 @@ const EntitiesPage = () => {
           {files.length > 0 && (
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {files.map((file, index) => (
-                <button
+                <div
                   key={index}
-                  type="button"
-                  onClick={() => handlePrimarySelect(index)}
-                  className={`group relative border rounded-xl p-2 flex flex-col items-center justify-center text-xs ${
-                    primaryIndex === index ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
-                  }`}
+                  className="border border-gray-200 rounded-xl p-2 flex flex-col items-center justify-center text-xs"
                 >
                   <ImageIcon className="w-8 h-8 text-gray-400 mb-1" />
                   <span className="truncate max-w-[120px]">{file.name}</span>
-                  <span
-                    className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium border ${
-                      primaryIndex === index
-                        ? 'bg-blue-50 border-blue-400 text-blue-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-600'
-                    }`}
-                  >
-                    {primaryIndex === index ? 'Primary image' : 'Set as primary'}
-                  </span>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -186,9 +163,11 @@ const EntitiesPage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {entities.map((entity) => (
-              <div
+              <button
                 key={entity.entity_id}
-                className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-sm"
+                type="button"
+                onClick={() => setActiveEntityId(entity.entity_id)}
+                className="text-left bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-3 shadow-sm hover:border-gray-300 hover:shadow transition"
               >
                 <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
                   {entity.thumbnail_url ? (
@@ -203,13 +182,27 @@ const EntitiesPage = () => {
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-gray-900">{entity.name}</div>
-                  <div className="text-xs text-gray-500 truncate">{entity.entity_id}</div>
+                  <div className="text-xs text-gray-500">{entity.entity_id}</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
+
+      <EntityEditorModal
+        open={Boolean(activeEntityId)}
+        entityId={activeEntityId}
+        onClose={() => setActiveEntityId(null)}
+        onSaved={async () => {
+          await loadEntities();
+          setActiveEntityId(null);
+        }}
+        onDeleted={async () => {
+          await loadEntities();
+          setActiveEntityId(null);
+        }}
+      />
     </div>
   );
 };

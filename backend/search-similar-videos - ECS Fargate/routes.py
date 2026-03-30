@@ -51,12 +51,11 @@ class EntityCreateRequest(BaseModel):
     """
     Request body for creating a new person/entity.
     The client must upload images to S3 first and then send the S3 keys here,
-    along with an explicit primary_image_key which will always be used for search.
+    The backend will auto-select a primary image (first image key) for search.
     """
 
     name: str
     image_keys: List[str]
-    primary_image_key: str
 
     @validator("name")
     def validate_name(cls, v: str) -> str:
@@ -78,12 +77,46 @@ class EntityCreateRequest(BaseModel):
             raise ValueError("at least one non-empty image key is required")
         return cleaned
 
-    @validator("primary_image_key")
-    def validate_primary_key(cls, v: str) -> str:
-        v = (v or "").strip()
+
+class EntityImageItem(BaseModel):
+    key: str
+    url: Optional[str] = None
+
+
+class EntityDetailResponse(BaseModel):
+    entity_id: str
+    name: str
+    image_keys: List[str]
+    images: List[EntityImageItem]
+
+
+class EntityUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    image_keys: Optional[List[str]] = None
+
+    @validator("name")
+    def validate_name_optional(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v2 = (v or "").strip()
+        if not v2:
+            raise ValueError("name must not be empty")
+        if len(v2) > 200:
+            raise ValueError("name must be <= 200 characters")
+        return v2
+
+    @validator("image_keys")
+    def validate_image_keys_optional(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
         if not v:
-            raise ValueError("primary_image_key is required")
-        return v
+            raise ValueError("at least one image key is required")
+        if len(v) > 10:
+            raise ValueError("no more than 10 images are allowed per entity")
+        cleaned = [s.strip() for s in v if s and s.strip()]
+        if not cleaned:
+            raise ValueError("at least one non-empty image key is required")
+        return cleaned
 
 
 class EntityListItem(BaseModel):
@@ -691,7 +724,8 @@ async def create_entity(
 ):
     """
     Create a new entity (person) from reference images.
-    The client must explicitly provide `primary_image_key`, which is ALWAYS used for searching.
+    The backend auto-selects a primary image (first image key), which is used for searching.
+    Embeddings are computed for each reference image and stored on the entity document.
     """
     try:
         clients = _get_app_clients(http_request)
@@ -700,14 +734,10 @@ async def create_entity(
             raise HTTPException(status_code=503, detail="Entities service unavailable")
         user_sub = _get_user_sub(_auth)
 
-        primary_key = request.primary_image_key
         image_keys = request.image_keys
-
-        if primary_key not in image_keys:
-            raise HTTPException(
-                status_code=400,
-                detail="primary_image_key must be one of image_keys",
-            )
+        primary_key = str(image_keys[0] or "").strip()
+        if not primary_key:
+            raise HTTPException(status_code=400, detail="First image key must not be empty")
 
         if len(image_keys) < 1 or len(image_keys) > 10:
             raise HTTPException(
@@ -718,6 +748,7 @@ async def create_entity(
         # Compute embeddings for each reference image.
         embeddings: List[List[float]] = []
         primary_embedding: Optional[List[float]] = None
+        image_embeddings: Dict[str, List[float]] = {}
 
         for s3_key in image_keys:
             img_b64 = _s3_key_to_base64_image(clients["s3"], s3_key)
@@ -730,6 +761,7 @@ async def create_entity(
                     detail=f"Failed to generate embedding for entity image key: {s3_key}",
                 )
             embeddings.append(embedding)
+            image_embeddings[str(s3_key)] = embedding
             if s3_key == primary_key:
                 primary_embedding = embedding
 
@@ -747,6 +779,7 @@ async def create_entity(
             "name": request.name,
             "image_keys": image_keys,
             "primary_image_key": primary_key,
+            "image_embeddings": image_embeddings,
             "primary_embedding": primary_embedding,
             "prototype_embedding": prototype_embedding,
             "created_at": now,
@@ -765,6 +798,164 @@ async def create_entity(
         raise
     except Exception as e:
         logger.error(f"Error in create_entity: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/entities/{entity_id}", response_model=EntityDetailResponse)
+async def get_entity(
+    entity_id: str,
+    http_request: Request,
+    _auth: Dict[str, Any] = Depends(require_auth),
+):
+    """Get full entity details including presigned URLs for all images."""
+    try:
+        clients = _get_app_clients(http_request)
+        _ensure_clients_ready(clients)
+        if clients.get("docdb") is None:
+            raise HTTPException(status_code=503, detail="Entities service unavailable")
+        user_sub = _get_user_sub(_auth)
+
+        _, db_name, _users_collection = get_docdb_settings()
+        entities_coll = clients["docdb"][db_name]["entities"]
+        doc = entities_coll.find_one({"user_sub": user_sub, "entity_id": entity_id})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Entity not found")
+
+        image_keys = [str(k) for k in (doc.get("image_keys") or []) if k]
+        images: List[EntityImageItem] = []
+        for k in image_keys:
+            url = _s3_key_to_presigned_url(clients["s3"], k, expiration=3600)
+            images.append(EntityImageItem(key=k, url=url))
+
+        return EntityDetailResponse(
+            entity_id=str(doc.get("entity_id") or ""),
+            name=str(doc.get("name") or ""),
+            image_keys=image_keys,
+            images=images,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_entity: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/entities/{entity_id}", response_model=EntityDetailResponse)
+async def update_entity(
+    entity_id: str,
+    request: EntityUpdateRequest,
+    http_request: Request,
+    _auth: Dict[str, Any] = Depends(require_auth),
+):
+    """Update entity name and/or image keys. Primary is always auto-picked (first image key)."""
+    try:
+        clients = _get_app_clients(http_request)
+        _ensure_clients_ready(clients)
+        if clients.get("docdb") is None:
+            raise HTTPException(status_code=503, detail="Entities service unavailable")
+        user_sub = _get_user_sub(_auth)
+
+        _, db_name, _users_collection = get_docdb_settings()
+        entities_coll = clients["docdb"][db_name]["entities"]
+        doc = entities_coll.find_one({"user_sub": user_sub, "entity_id": entity_id})
+        if not doc:
+            raise HTTPException(status_code=404, detail="Entity not found")
+
+        next_name = request.name if request.name is not None else str(doc.get("name") or "")
+        next_image_keys = (
+            request.image_keys if request.image_keys is not None else (doc.get("image_keys") or [])
+        )
+        next_image_keys = [str(k) for k in next_image_keys if k and str(k).strip()]
+        if len(next_image_keys) < 1 or len(next_image_keys) > 10:
+            raise HTTPException(status_code=400, detail="Entities must have between 1 and 10 reference images.")
+
+        primary_key = str(next_image_keys[0] or "").strip()
+        if not primary_key:
+            raise HTTPException(status_code=400, detail="First image key must not be empty")
+
+        # Recompute embeddings for each reference image (simple + consistent).
+        embeddings: List[List[float]] = []
+        image_embeddings: Dict[str, List[float]] = {}
+        primary_embedding: Optional[List[float]] = None
+
+        for s3_key in next_image_keys:
+            img_b64 = _s3_key_to_base64_image(clients["s3"], s3_key)
+            embedding = generate_embedding_marengo3(
+                clients["bedrock"], text=None, image_base64=img_b64
+            )
+            if not embedding:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to generate embedding for entity image key: {s3_key}",
+                )
+            embeddings.append(embedding)
+            image_embeddings[str(s3_key)] = embedding
+            if s3_key == primary_key:
+                primary_embedding = embedding
+
+        if not primary_embedding:
+            raise HTTPException(status_code=500, detail="Failed to compute primary embedding")
+
+        prototype_embedding = _average_vectors(embeddings)
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        entities_coll.update_one(
+            {"_id": doc["_id"]},
+            {
+                "$set": {
+                    "name": next_name,
+                    "image_keys": next_image_keys,
+                    "primary_image_key": primary_key,
+                    "image_embeddings": image_embeddings,
+                    "primary_embedding": primary_embedding,
+                    "prototype_embedding": prototype_embedding,
+                    "updated_at": now,
+                }
+            },
+        )
+
+        images: List[EntityImageItem] = []
+        for k in next_image_keys:
+            url = _s3_key_to_presigned_url(clients["s3"], k, expiration=3600)
+            images.append(EntityImageItem(key=k, url=url))
+
+        return EntityDetailResponse(
+            entity_id=str(entity_id),
+            name=str(next_name),
+            image_keys=next_image_keys,
+            images=images,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in update_entity: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/entities/{entity_id}")
+async def delete_entity(
+    entity_id: str,
+    http_request: Request,
+    _auth: Dict[str, Any] = Depends(require_auth),
+):
+    """Delete an entity document (does not delete S3 images)."""
+    try:
+        clients = _get_app_clients(http_request)
+        _ensure_clients_ready(clients)
+        if clients.get("docdb") is None:
+            raise HTTPException(status_code=503, detail="Entities service unavailable")
+        user_sub = _get_user_sub(_auth)
+
+        _, db_name, _users_collection = get_docdb_settings()
+        entities_coll = clients["docdb"][db_name]["entities"]
+        res = entities_coll.delete_one({"user_sub": user_sub, "entity_id": entity_id})
+        if res.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Entity not found")
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in delete_entity: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
