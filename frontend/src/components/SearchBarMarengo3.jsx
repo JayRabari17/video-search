@@ -58,6 +58,14 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
       return;
     }
 
+    // Only one entity mention is supported. If an entity is already selected,
+    // never re-open the entity dropdown until that entity is removed.
+    if (selectedEntity) {
+      setEntityFilter('');
+      setShowEntityDropdown(false);
+      return;
+    }
+
     // Only open entity dropdown when the user is currently typing an "@token" at the end.
     // This prevents reopening the dropdown after an entity has been selected and followed by normal text.
     const match = String(value || '').match(/(?:^|\s)@([^\s]*)$/);
@@ -77,6 +85,47 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
     const highlight = highlightRef.current;
     if (!input || !highlight) return;
     highlight.scrollLeft = input.scrollLeft;
+  };
+
+  const getSelectedEntityMentionRange = (value) => {
+    const entName = String(selectedEntity?.name || '').trim();
+    if (!entName) return null;
+    const needle = `@${entName}`;
+    const haystack = String(value || '');
+    const idx = haystack.toLowerCase().indexOf(needle.toLowerCase());
+    if (idx === -1) return null;
+    return { start: idx, end: idx + needle.length };
+  };
+
+  const removeSelectedEntityMentionFromValue = (value) => {
+    const range = getSelectedEntityMentionRange(value);
+    if (!range) return value;
+    const next = `${String(value || '').slice(0, range.start)}${String(value || '').slice(range.end)}`
+      .replace(/\s{2,}/g, ' ')
+      .trimStart();
+    return next;
+  };
+
+  const enforceAtomicMentionSelection = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    const mentionRange = getSelectedEntityMentionRange(query);
+    if (!mentionRange) return;
+
+    const selStart = input.selectionStart ?? 0;
+    const selEnd = input.selectionEnd ?? selStart;
+    const selectionOverlapsMention = selStart < mentionRange.end && selEnd > mentionRange.start;
+    if (!selectionOverlapsMention) return;
+
+    // If caret/selection lands inside the mention, snap it to just after the mention.
+    // This keeps the mention effectively "atomic" even with mouse clicks / arrow keys.
+    const pos = mentionRange.end + 1;
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.setSelectionRange(pos, pos);
+      el.focus();
+    });
   };
 
   const filteredEntities = useMemo(() => {
@@ -170,10 +219,12 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
     // Support combined text + image search
     if (query.trim() || selectedImage || selectedEntity) {
       const rawQuery = query.trim();
-      // If the user only typed an @-mention (e.g. "@anna"), treat it as entity-only search.
-      // This ensures we don't accidentally generate a multimodal embedding with "@name" as text.
-      const mentionOnly =
-        selectedEntity && rawQuery.startsWith('@') && !rawQuery.slice(1).includes(' ');
+      // If the user query is exactly the selected entity mention (e.g. "@Sydney Agudong"),
+      // treat it as entity-only search (do NOT send query_text).
+      // This ensures we don't generate embeddings with "@name" as text.
+      const normalize = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+      const selectedMention = selectedEntity?.name ? `@${String(selectedEntity.name)}` : '';
+      const mentionOnly = !!selectedEntity && normalize(rawQuery) === normalize(selectedMention);
       const queryToSend = mentionOnly ? null : (rawQuery || null);
 
       console.log("Searching (Marengo 3):", {
@@ -402,8 +453,58 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
                 ref={inputRef}
                 onScroll={syncHighlightScroll}
                 onKeyUp={syncHighlightScroll}
-                onClick={syncHighlightScroll}
+                onClick={() => {
+                  syncHighlightScroll();
+                  enforceAtomicMentionSelection();
+                }}
+                onMouseUp={enforceAtomicMentionSelection}
+                onSelect={enforceAtomicMentionSelection}
                 onKeyDown={(e) => {
+                  // Make selected entity mention behave like a single token.
+                  // - Backspace/Delete anywhere "inside" the mention removes the whole mention at once.
+                  // - Typing inside the mention is blocked; caret jumps to the end of the mention.
+                  const input = inputRef.current;
+                  const mentionRange = getSelectedEntityMentionRange(query);
+                  if (input && mentionRange) {
+                    const selStart = input.selectionStart ?? 0;
+                    const selEnd = input.selectionEnd ?? selStart;
+                    const selectionOverlapsMention =
+                      selStart < mentionRange.end && selEnd > mentionRange.start;
+                    const caretInsideMention =
+                      selStart === selEnd &&
+                      selStart > mentionRange.start &&
+                      selStart < mentionRange.end;
+                    const caretAtBackspaceBoundary =
+                      e.key === 'Backspace' && selStart === selEnd && selStart === mentionRange.end;
+                    const caretAtDeleteBoundary =
+                      e.key === 'Delete' && selStart === selEnd && selStart === mentionRange.start;
+
+                    const isDeletionKey = e.key === 'Backspace' || e.key === 'Delete';
+                    const isPrintableChar =
+                      e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+
+                    if (isDeletionKey && (selectionOverlapsMention || caretAtBackspaceBoundary || caretAtDeleteBoundary)) {
+                      e.preventDefault();
+                      const next = removeSelectedEntityMentionFromValue(query);
+                      updateQuery(next);
+                      setSelectedEntity(null);
+                      requestAnimationFrame(() => inputRef.current?.focus());
+                      return;
+                    }
+
+                    if (isPrintableChar && (caretInsideMention || selectionOverlapsMention)) {
+                      e.preventDefault();
+                      requestAnimationFrame(() => {
+                        const el = inputRef.current;
+                        if (!el) return;
+                        const pos = mentionRange.end + 1; // keep a little separation from the token
+                        el.setSelectionRange(pos, pos);
+                        el.focus();
+                      });
+                      return;
+                    }
+                  }
+
                   if (!showEntityDropdown) return;
 
                   if (e.key === 'Enter') {

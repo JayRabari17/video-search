@@ -82,11 +82,6 @@ async def startup_event():
 
 app.include_router(router)
 
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-
 def get_opensearch_client():
     """Initialize OpenSearch Cluster client"""
     opensearch_host = os.environ.get("OPENSEARCH_CLUSTER_HOST")
@@ -110,3 +105,7 @@ def get_opensearch_client():
         connection_class=RequestsHttpConnection,
         pool_maxsize=20,
     )
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

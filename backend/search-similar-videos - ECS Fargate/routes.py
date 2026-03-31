@@ -20,6 +20,104 @@ from services import (
 
 router = APIRouter()
 
+def _dedupe_merge_sort_results(results: List[Dict[str, Any]], top_k: int) -> List[Dict[str, Any]]:
+    """
+    Merge results from multiple searches into a single ranked list.
+    De-dupe by clip identity and keep the highest score for duplicates.
+    """
+    if not results:
+        return []
+
+    def _key(r: Dict[str, Any]) -> str:
+        clip_id = r.get("clip_id")
+        video_id = r.get("video_id")
+        if clip_id and video_id:
+            return f"{video_id}::{clip_id}"
+        if r.get("_id"):
+            return str(r.get("_id"))
+        return f"{video_id}::{clip_id}::{r.get('timestamp_start')}::{r.get('timestamp_end')}"
+
+    best: Dict[str, Dict[str, Any]] = {}
+    for r in results:
+        k = _key(r)
+        if k not in best or float(r.get("score", 0) or 0) > float(best[k].get("score", 0) or 0):
+            best[k] = r
+
+    merged = list(best.values())
+    merged.sort(key=lambda x: float(x.get("score", 0) or 0), reverse=True)
+    if top_k and top_k > 0:
+        return merged[: int(top_k)]
+    return merged
+
+
+async def _run_parallel_entity_image_searches(
+    *,
+    opensearch_client: Any,
+    embeddings: List[List[float]],
+    top_k: int,
+    search_type: str,
+    categories: Optional[List[str]] = None,
+    min_relevance: Optional[float] = None,
+    max_segments_per_video: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Run one OpenSearch query per embedding concurrently and merge results.
+    """
+    if not embeddings:
+        return []
+
+    per_image_k = top_k
+
+    def _search_one(emb: List[float]) -> List[Dict[str, Any]]:
+        if search_type == "visual":
+            return visual_search_marengo3(
+                opensearch_client,
+                emb,
+                per_image_k,
+                "video_clips_3_lucene",
+                categories=categories,
+                min_relevance=min_relevance,
+                max_segments_per_video=max_segments_per_video,
+            )
+        if search_type == "audio":
+            return audio_search_marengo3(
+                opensearch_client,
+                emb,
+                per_image_k,
+                "video_clips_3_lucene",
+                categories=categories,
+                min_relevance=min_relevance,
+                max_segments_per_video=max_segments_per_video,
+            )
+        return vector_search_marengo3(
+            opensearch_client,
+            emb,
+            per_image_k,
+            "video_clips_3_lucene",
+            preference="VISUAL_FOCUS",
+            categories=categories,
+            min_relevance=min_relevance,
+            max_segments_per_video=max_segments_per_video,
+        )
+
+    tasks = [asyncio.to_thread(_search_one, emb) for emb in embeddings]
+    results_lists = await asyncio.gather(*tasks, return_exceptions=True)
+
+    combined: List[Dict[str, Any]] = []
+    failures = 0
+    for item in results_lists:
+        if isinstance(item, Exception):
+            failures += 1
+            logger.warning(f"Entity parallel search task failed: {type(item).__name__}: {item}")
+            continue
+        combined.extend(item or [])
+
+    if failures and not combined:
+        logger.warning("All entity parallel searches failed; returning empty results")
+        return []
+
+    return _dedupe_merge_sort_results(combined, top_k=TOP_K)
+
 
 def _get_app_clients(request: Request) -> Dict[str, Any]:
     app = request.app
@@ -421,6 +519,8 @@ async def search_videos_marengo3(
         search_input_type = "text"
         classified_intent = None
         query_embedding: Optional[List[float]] = None
+        results: Optional[List[Dict[str, Any]]] = None
+        _already_searched = False
 
         if entity_id:
             if image_base64:
@@ -450,15 +550,26 @@ async def search_videos_marengo3(
 
             # Case 1: entity only (no text) -> use stored or freshly computed primary embedding
             if not query_text:
-                stored_embedding = entity_doc.get("primary_embedding")
-                if stored_embedding and isinstance(stored_embedding, list) and stored_embedding:
-                    query_embedding = stored_embedding
-                    search_input_type = "entity_image"
-                    classified_intent = "VISUAL_FOCUS"
-                    logger.info(
-                        f"Using cached primary embedding for entity_id={entity_id} (len={len(stored_embedding)})"
-                    )
-                else:
+                image_embeddings_map = entity_doc.get("image_embeddings") or {}
+                embeddings: List[List[float]] = []
+
+                # Prefer all per-image embeddings stored on the entity doc
+                if isinstance(image_embeddings_map, dict) and image_embeddings_map:
+                    for _k, emb in image_embeddings_map.items():
+                        if isinstance(emb, list) and emb:
+                            embeddings.append(emb)
+
+                # Backward-compatible fallback: primary_embedding only
+                if not embeddings:
+                    stored_embedding = entity_doc.get("primary_embedding")
+                    if stored_embedding and isinstance(stored_embedding, list):
+                        embeddings = [stored_embedding]
+                        logger.info(
+                            f"Using cached primary embedding for entity_id={entity_id} (len={len(stored_embedding)})"
+                        )
+
+                # Final fallback: compute from primary image and best-effort cache
+                if not embeddings:
                     logger.info(
                         f"Generating primary image embedding for entity_id={entity_id} using its primary image"
                     )
@@ -471,11 +582,7 @@ async def search_videos_marengo3(
                             status_code=500,
                             detail="Failed to generate embedding for entity primary image",
                         )
-                    query_embedding = embedding
-                    search_input_type = "entity_image"
-                    classified_intent = "VISUAL_FOCUS"
-
-                    # Best effort: cache embedding back into the document
+                    embeddings = [embedding]
                     try:
                         entities_coll.update_one(
                             {"_id": entity_doc["_id"]},
@@ -485,6 +592,24 @@ async def search_videos_marengo3(
                         logger.warning(
                             f"Failed to cache primary_embedding for entity_id={entity_id}: {e}"
                         )
+
+                search_input_type = "entity_image_multi" if len(embeddings) > 1 else "entity_image"
+                classified_intent = "VISUAL_FOCUS"
+
+                logger.info(
+                    f"Entity image search: running {len(embeddings)} OpenSearch queries in parallel (search_type={search_type}, top_k={top_k})"
+                )
+                results = await _run_parallel_entity_image_searches(
+                    opensearch_client=clients["opensearch"],
+                    embeddings=embeddings,
+                    top_k=top_k,
+                    search_type=search_type,
+                    categories=categories,
+                    min_relevance=min_relevance,
+                    max_segments_per_video=max_segments_per_video,
+                )
+                query_embedding = embeddings[0] if embeddings else None
+                _already_searched = True
             # Case 2: entity + text -> multimodal text+image embedding, using primary image
             else:
                 logger.info(
@@ -583,7 +708,10 @@ async def search_videos_marengo3(
         # STEP 3: Perform search based on type
         logger.info(f"📊 Step 3: Performing {search_type} search (Marengo 3)")
 
-        if search_type == "hybrid":
+        if _already_searched:
+            # Results already computed (entity multi-image parallel path).
+            results = results or []
+        elif search_type == "hybrid":
             logger.info(
                 "⚠️ Hybrid search not yet implemented for Marengo 3, using vector search instead"
             )

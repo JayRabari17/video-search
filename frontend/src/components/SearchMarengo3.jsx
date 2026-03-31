@@ -28,7 +28,11 @@ function SearchMarengo3() {
   ) => {
     setIsLoading(true);
     setError(null);
-    setQuery(searchQuery || '');
+    // Keep the search bar showing the selected entity for entity-only searches
+    // (searchQuery is intentionally null in that case).
+    const displayQuery =
+      searchQuery ?? (entity?.name ? `@${String(entity.name)}` : '');
+    setQuery(displayQuery);
     setSelectedEntity(entity || null);
     setHasSearched(true);
 
