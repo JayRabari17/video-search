@@ -2,3 +2,5 @@
 *venv
 .zed/*
 *.pem
+__pycache__/
+*.pyc

@@ -104,6 +104,13 @@ const SearchBarMarengo3 = ({ onSearch, isLoading, onSearchTypeChange, queryValue
     setShowEntityDropdown(false);
     setEntityFilter('');
 
+    // Entity search should default to Visual only.
+    // Ensure UI + searchType reflect this immediately.
+    setVisual(true);
+    setAudio(false);
+    setTranscription(false);
+    onSearchTypeChange?.('visual');
+
     // Replace the current @-mention fragment with the chosen entity name, keeping position.
     const current = query || '';
     const atIndex = current.lastIndexOf('@');
