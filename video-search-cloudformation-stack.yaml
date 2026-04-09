@@ -1649,7 +1649,7 @@ Resources:
                   key = unquote_plus(record['s3']['object']['key'])
                   dst_bucket = os.environ['OUTPUT_BUCKET']
                   timestamp = str(datetime.now().strftime('%m-%d-%Y_%H-%M-%S'))
-                  if not key.lower().endswith(('.mp4', '.mov', '.avi')):
+                  if not key.lower().endswith(('.mp4', '.mov', '.webm')):
                       print(f"Skipping non-video file: {key}")
                       continue
                   categories = parse_categories_from_key(key)
@@ -1714,6 +1714,22 @@ Resources:
               Rules:
               - Name: suffix
                 Value: .mp4
+
+        - Event: s3:ObjectCreated:*
+          Function: !GetAtt InvokeStepFunctionFunction.Arn
+          Filter:
+            S3Key:
+              Rules:
+              - Name: suffix
+                Value: .mov
+
+        - Event: s3:ObjectCreated:*
+          Function: !GetAtt InvokeStepFunctionFunction.Arn
+          Filter:
+            S3Key:
+              Rules:
+              - Name: suffix
+                Value: .webm
 
   # ============ OUTPUT VIDEO BUCKET (for processed videos and thumbnails) ============
   OutputVideoBucket:

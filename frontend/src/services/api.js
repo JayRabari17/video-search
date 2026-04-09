@@ -352,7 +352,7 @@ export const listAllVideos = async () => {
   }
 };
 
-export const getPresignedUploadUrl = async (filename, fileSize, category) => {
+export const getPresignedUploadUrl = async (filename, fileSize, category, contentType) => {
   try {
     // Load config first
     const backendUrl = await getBackendUrl();
@@ -364,6 +364,9 @@ export const getPresignedUploadUrl = async (filename, fileSize, category) => {
     }
     if (category) {
       queryParams += `&category=${encodeURIComponent(category)}`;
+    }
+    if (contentType) {
+      queryParams += `&content_type=${encodeURIComponent(contentType)}`;
     }
 
     const response = await fetch(`${backendUrl}/generate-upload-presigned-url?${queryParams}`, {
